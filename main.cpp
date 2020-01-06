@@ -6,20 +6,14 @@
 // https://stackoverflow.com/questions/18559028/undefined-reference-to-imp-wsacleanup
 // https://www.binarytides.com/winsock-socket-programming-tutorial/
 // https://www.bogotobogo.com/cplusplus/multithreading_win32A.php
+// https://cboard.cprogramming.com/cplusplus-programming/54830-sending-arguments-function-using-createthread.html
 
-int receiveLoop(SOCKET &s, char* rBuf, int bufSize, int control) {
-    int recvSize;
-
-    while (true)  {
-        rBuf[0] = '\0';
-        if((recvSize = recv(s, rBuf, bufSize, control)) == SOCKET_ERROR)
-        {
-        }
-        else {
-            printf("%s\n", rBuf);
-        }
-    }
-}
+struct recvARGS {
+    SOCKET *socket;
+    char* buffer;
+    int bufSize;
+    int flags;
+};
 
 int inputFromUser(){
     std::string input;
@@ -33,11 +27,24 @@ int inputFromUser(){
 
 DWORD WINAPI myThread(LPVOID lpParameter)
 {
-	unsigned int& myCounter = *((unsigned int*)lpParameter);
-	while(myCounter < 0xFFFFFFFF){
-        ++myCounter;
-        printf(".");
-    };
+    int recvSize;
+    // Cast to recvARGS type
+    recvARGS *pArgs = (recvARGS*) lpParameter;
+
+    while (true)  {
+
+        pArgs->buffer[0] = '\0';
+
+        recvSize = recv(*pArgs->socket,
+                        pArgs->buffer,
+                        pArgs->bufSize,
+                        pArgs->flags);
+
+        if(recvSize != SOCKET_ERROR)
+        {
+            printf("%s\n", pArgs->buffer);
+        }
+    }
 	return 0;
 }
  
@@ -71,37 +78,34 @@ int main (int argc, char* argv[]) {
     //send(serverSocket, sendBuffer, sizeof(sendBuffer), 0);
     //printf("Message sent!\n");
 
-    //std::thread receiveThread(receiveLoop, serverSocket, recvBuffer, 1024, 0);
-    //std::thread inputThread(inputFromUser);
-
-    //receiveThread.join();
-    //inputThread.join();
-
     /*
     if((recvSize = recv(serverSocket, recvBuffer, 1024, 0)) == SOCKET_ERROR)
 	{
 		puts("recv failed");
 	}*/
+    
+    using namespace std;
 
-    {
-	    using namespace std;
+    recvARGS args = {
+        &serverSocket,
+        recvBuffer,
+        1024,
+        0
+    };
 
-        unsigned int myCounter = 0;
-        DWORD myThreadID;
-        HANDLE myHandle = CreateThread(0, 0, myThread, &myCounter, 0, &myThreadID);
-        char myChar = ' ';
-        while(myChar != 'q') {
-            myChar = getchar();
-        }
-        
-        CloseHandle(myHandle);
+    DWORD myThreadID;
+
+    HANDLE myHandle = CreateThread(0, 0, myThread, &args, 0, &myThreadID);
+
+    while(sendBuffer[0] != 'q') {
+        sendBuffer[0] = '\0';
+        scanf("%s", sendBuffer);
+        send(serverSocket, sendBuffer, sizeof(sendBuffer), 0);
     }
+    
+    CloseHandle(myHandle);
 
-
-
-
-
-    receiveLoop(serverSocket, recvBuffer, 1024, 0);
+    //receiveLoop(serverSocket, recvBuffer, 1024, 0);
 
     
     closesocket(serverSocket);
