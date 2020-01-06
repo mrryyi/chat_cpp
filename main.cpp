@@ -33,7 +33,7 @@ DWORD WINAPI myThread(LPVOID lpParameter)
 
     while (true)  {
 
-        pArgs->buffer[0] = '\0';
+        memset(pArgs->buffer, 0, strlen(pArgs->buffer));
 
         recvSize = recv(*pArgs->socket,
                         pArgs->buffer,
@@ -98,15 +98,20 @@ int main (int argc, char* argv[]) {
     HANDLE myHandle = CreateThread(0, 0, myThread, &args, 0, &myThreadID);
 
     while(sendBuffer[0] != 'q') {
-        sendBuffer[0] = '\0';
-        scanf("%s", sendBuffer);
+
+        memset(sendBuffer, 0, strlen(sendBuffer));
+        //scanf(" %1024c[^\n]", sendBuffer);
+
+        if (scanf("%1024[^\n]%*c", sendBuffer))
+        {
+            //sendBuffer[strcspn(sendBuffer, "\n")] = 0;
+            
+        }
+
         send(serverSocket, sendBuffer, sizeof(sendBuffer), 0);
     }
     
     CloseHandle(myHandle);
-
-    //receiveLoop(serverSocket, recvBuffer, 1024, 0);
-
     
     closesocket(serverSocket);
     WSACleanup();

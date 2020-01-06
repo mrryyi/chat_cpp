@@ -5,4 +5,4 @@ main.o: main.cpp
 	g++ -c main.cpp
 
 clean:
-	rm output *.o
+	rm output *.o *.stackdump
