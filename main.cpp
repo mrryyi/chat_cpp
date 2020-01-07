@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string>
 #include <windows.h>
+#include "nlohmann/json.hpp"
 
 // https://stackoverflow.com/questions/18559028/undefined-reference-to-imp-wsacleanup
 // https://www.binarytides.com/winsock-socket-programming-tutorial/
@@ -14,16 +15,6 @@ struct recvARGS {
     int bufSize;
     int flags;
 };
-
-int inputFromUser(){
-    std::string input;
-    std::string quitStr = "\\quit";
-    int found;
-    do {
-        scanf("%s", &input); 
-        found = input.find(quitStr);
-    } while (found == 0);
-}
 
 DWORD WINAPI myThread(LPVOID lpParameter)
 {
@@ -47,6 +38,37 @@ DWORD WINAPI myThread(LPVOID lpParameter)
     }
 	return 0;
 }
+
+enum chatCommand{
+    dadjoke = 0
+};
+
+chatCommand checkChatCommand(char* buf, int bufSize) {
+    const char* word = "dad";
+    if (strstr(buf, word)){
+        return dadjoke;
+    }
+}
+
+void makeThisBufferSomething(char* buf, int bufSize, chatCommand cmd) {
+
+    const char* txt = "dadjoke";
+    
+    switch(cmd) {
+        case dadjoke:
+            strcpy(buf, txt);
+            break;
+    }
+}
+
+int getEndPos(char* buffer) {
+    char *ch;
+    int endPos;
+    ch = strchr(buffer, '\n');
+    endPos = (int) (ch - buffer);
+    
+    return endPos;
+}
  
 int main (int argc, char* argv[]) {
 
@@ -69,22 +91,13 @@ int main (int argc, char* argv[]) {
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
  
     addr.sin_addr.s_addr = inet_addr("127.0.0.1"); // replace the ip with your futur server ip address. If server AND client are running on the same computer, you can use the local ip 127.0.0.1
+    //addr.sin_addr.s_addr = inet_addr("157.245.71.138"); // replace the ip with your futur server ip address. If server AND client are running on the same computer, you can use the local ip 127.0.0.1
     addr.sin_family = AF_INET;
     addr.sin_port = htons(1234);
  
     connect(serverSocket, (SOCKADDR *)&addr, sizeof(addr));
     printf("Connected to server!\n");
- 
-    //send(serverSocket, sendBuffer, sizeof(sendBuffer), 0);
-    //printf("Message sent!\n");
-
-    /*
-    if((recvSize = recv(serverSocket, recvBuffer, 1024, 0)) == SOCKET_ERROR)
-	{
-		puts("recv failed");
-	}*/
     
-    using namespace std;
 
     recvARGS args = {
         &serverSocket,
@@ -97,18 +110,36 @@ int main (int argc, char* argv[]) {
 
     HANDLE myHandle = CreateThread(0, 0, myThread, &args, 0, &myThreadID);
 
-    while(sendBuffer[0] != 'q') {
+    unsigned int endPos;
+
+    chatCommand chatCmd;
+
+    bool going = true;
+
+    while(going) {
 
         memset(sendBuffer, 0, strlen(sendBuffer));
-        //scanf(" %1024c[^\n]", sendBuffer);
 
-        if (scanf("%1024[^\n]%*c", sendBuffer))
+        if (fgets(sendBuffer, 1024, stdin))
         {
-            //sendBuffer[strcspn(sendBuffer, "\n")] = 0;
+            if (sendBuffer[0] == '!') {
+                chatCmd = checkChatCommand(sendBuffer, endPos);
+                
+                memset(sendBuffer, 0, strlen(sendBuffer));
+
+                makeThisBufferSomething(sendBuffer, 1024, chatCmd);
+
+            }
+            if (sendBuffer[0] == 'q'){
+                memset(sendBuffer, 0, strlen(sendBuffer));
+                strcpy(sendBuffer, "quit()");
+                going = false;
+            }
             
+            endPos = getEndPos(sendBuffer);
+            send(serverSocket, sendBuffer, endPos, 0);
         }
 
-        send(serverSocket, sendBuffer, sizeof(sendBuffer), 0);
     }
     
     CloseHandle(myHandle);

@@ -1,0 +1,8 @@
+output: main.o
+	g++ -o output main.o -lwsock32 -std=c++11
+
+main.o: main.cpp
+	g++ -c main.cpp
+
+clean:
+	rm output *.o *.stackdump
